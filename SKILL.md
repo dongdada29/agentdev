@@ -201,6 +201,48 @@ const stats = selfIter.getStats();
 
 ---
 
+## 🌙 Nightly Build
+
+Automated build, test, and report system.
+
+### Usage
+
+```typescript
+import { NightlyBuild, DEFAULT_BUILD_CONFIG } from 'agentdev';
+
+const build = new NightlyBuild({
+  projectPath: '/path/to/project',
+  steps: [
+    { name: 'install', command: 'npm ci', timeout: 300000 },
+    { name: 'lint', command: 'npm run lint', timeout: 120000 },
+    { name: 'test', command: 'npm run test:run', timeout: 300000 },
+    { name: 'build', command: 'npm run build', timeout: 300000 },
+  ],
+  notify: {
+    onSuccess: ['https://hooks.slack.com/xxx'],
+    onFailure: ['https://hooks.slack.com/xxx'],
+  },
+});
+
+// Run once
+const result = await build.run();
+
+// Or start scheduler (runs daily at 2 AM)
+build.start();
+
+// Get report
+const report = await build.getReport(7);
+```
+
+### Features
+
+- **Automated Steps**: install → lint → test → build
+- **Notifications**: Slack/Discord/webhook on success/failure
+- **Coverage Tracking**: Track test coverage over time
+- **Reports**: Weekly build summary
+
+---
+
 ## Notes
 
 - Requires Claude Code, Codex, or similar agent CLI

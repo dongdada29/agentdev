@@ -11,6 +11,7 @@ export { Metrics, type MetricsData } from './metrics';
 export { CodeReviewer, type ReviewResult } from './reviewer';
 export { AgentDevServer, type ServerConfig } from './server';
 export { SelfIteration, type SessionRecord, type IterationInsight } from './selfIteration';
+export { NightlyBuild, type BuildConfig, type BuildResult, type NightlyReport, DEFAULT_BUILD_CONFIG } from './nightlyBuild';
 
 // Templates
 export { SPEC_TEMPLATE } from './templates/spec';
