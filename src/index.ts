@@ -10,6 +10,7 @@ export { Cache, type CacheOptions } from './cache';
 export { Metrics, type MetricsData } from './metrics';
 export { CodeReviewer, type ReviewResult } from './reviewer';
 export { AgentDevServer, type ServerConfig } from './server';
+export { SelfIteration, type SessionRecord, type IterationInsight } from './selfIteration';
 
 // Templates
 export { SPEC_TEMPLATE } from './templates/spec';
