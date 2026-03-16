@@ -9,6 +9,7 @@ import type { Task, Result, Issue, AgentDevConfig } from './types.js';
 
 export { Coordinator } from './coordinator.js';
 export { Reviewer } from './reviewer.js';
+export { spawnAgent, spawnAgentsParallel, checkGateway } from './spawn.js';
 export type {
   Task,
   Result,

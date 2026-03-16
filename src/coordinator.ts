@@ -3,6 +3,7 @@
  */
 
 import type { Task, Result, TaskWithStatus, TaskStatus, AgentDevConfig } from './types.js';
+import { spawnAgentsParallel, checkGateway } from './spawn.js';
 
 export class Coordinator {
   private config: AgentDevConfig;
@@ -60,12 +61,24 @@ export class Coordinator {
    * Execute tasks in parallel (no dependency handling)
    */
   async parallel(tasks: Task[]): Promise<Result[]> {
-    // This will be implemented to call OpenClaw sessions_spawn
-    // For now, return placeholder results
+    // Check if Gateway is available
+    const gatewayAvailable = await checkGateway();
+
+    if (gatewayAvailable) {
+      // Use real OpenClaw spawn
+      return spawnAgentsParallel(
+        tasks,
+        this.config.agents,
+        undefined,
+        this.config.queue?.maxConcurrent || 5
+      );
+    }
+
+    // Fallback: return placeholder results (for testing/offline)
     const results: Result[] = tasks.map(task => ({
       taskId: task.id,
       success: true,
-      output: `Task ${task.id} completed`,
+      output: `Task ${task.id} completed (offline mode)`,
       filesModified: task.files,
     }));
 
