@@ -168,7 +168,32 @@ if (result.issues.length > 0) {
 }
 ```
 
-### 示例 5: 缓存管理
+### 示例 5: 深度研究
+
+```typescript
+import { ResearchAgent } from 'agentdev';
+
+const agent = new ResearchAgent();
+
+// 进行深度研究
+const report = await agent.research({
+  id: 'query-1',
+  topic: 'Rust Tauri vs Electron',
+  depth: 'deep',
+  focusAreas: ['performance', 'developer-experience'],
+});
+
+console.log('=== 研究报告 ===');
+console.log(report.summary);
+console.log('\n发现:', report.findings.length);
+console.log('\n洞察:', report.insights);
+console.log('\n来源:', report.sources);
+
+// 继续研究
+const extended = await agent.continueResearch(report, ['mobile-support', 'community']);
+```
+
+### 示例 6: 缓存管理
 
 ```typescript
 import { Cache } from 'agentdev';
@@ -203,6 +228,7 @@ const results = cache.mget(keys);
 | **Reviewer** | 代码审查 |
 | **SelfIteration** | 自迭代学习 |
 | **NightlyBuild** | 自动化构建 |
+| **ResearchAgent** | 深度研究分析 |
 
 ## CLI
 
