@@ -1,19 +1,28 @@
 {
   "name": "agentdev",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Multi-Agent Collaborative Development Framework",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "bin": {
     "agentdev": "./bin/agentdev.js"
   },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --watch",
     "test": "vitest run",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/",
     "format": "prettier --write src/",
-    "prepublish": "npm run build"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "agent",
@@ -21,12 +30,19 @@
     "codex",
     "multi-agent",
     "development",
-    "automation"
+    "automation",
+    "openclaw",
+    "acp"
   ],
   "author": "dongdada",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dongdada29/agentdev"
+  },
   "dependencies": {
-    "electron-log": "^5.2.0"
+    "commander": "^12.0.0",
+    "yaml": "^2.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -34,5 +50,8 @@
     "vitest": "^2.0.0",
     "eslint": "^8.0.0",
     "prettier": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

@@ -1,93 +1,116 @@
 /**
- * Coordinator
- * Multi-Agent Collaborative Development Coordinator
+ * Coordinator - Task coordination and parallel execution
  */
 
-import { sessions_spawn } from './sessions';
-import { CodeReviewer } from './reviewer';
-import log from 'electron-log';
+import type { Task, Result, TaskWithStatus, TaskStatus, AgentDevConfig } from './types.js';
 
-export interface AgentDevConfig {
-  runtime?: 'acp' | 'subagent';
-  model?: string;
-  cwd?: string;
-}
-
-export interface DevTask {
-  id: number;
-  agent: 'claude' | 'codex' | 'opencode';
-  task: string;
-  files: string[];
-  dependencies?: number[];
-}
-
-export interface DevSpec {
-  name: string;
-  description?: string;
-  tasks: DevTask[];
-  cwd: string;
-}
-
-export interface DevResult {
-  taskId: number;
-  files: string[];
-  success: boolean;
-  error?: Error;
-}
-
-/**
- * AgentDev - Multi-Agent Collaborative Development
- */
-export class AgentDev {
+export class Coordinator {
   private config: AgentDevConfig;
-  private reviewer: CodeReviewer;
+  private tasks: Map<string, TaskWithStatus> = new Map();
 
-  constructor(config: AgentDevConfig = {}) {
-    this.config = {
-      runtime: 'acp',
-      ...config,
-    };
-    this.reviewer = new CodeReviewer();
+  constructor(config: AgentDevConfig) {
+    this.config = config;
   }
 
   /**
-   * Parallel development with multiple agents
+   * Add a task to the coordinator
    */
-  async parallelDev(spec: DevSpec): Promise<DevResult[]> {
-    log.info(`[AgentDev] Starting parallel development: ${spec.name}`);
-    log.info(`[AgentDev] ${spec.tasks.length} tasks to execute`);
+  addTask(task: Task): void {
+    this.tasks.set(task.id, {
+      ...task,
+      status: 'pending',
+    });
+  }
 
-    // Execute all tasks in parallel
-    const promises = spec.tasks.map((task) =>
-      this.executeTask(task, spec.cwd)
-    );
+  /**
+   * Add multiple tasks
+   */
+  addTasks(tasks: Task[]): void {
+    tasks.forEach(t => this.addTask(t));
+  }
 
-    const results = await Promise.all(promises);
+  /**
+   * Get task by id
+   */
+  getTask(id: string): TaskWithStatus | undefined {
+    return this.tasks.get(id);
+  }
 
-    // Summary
-    const successCount = results.filter((r) => r.success).length;
-    log.info(
-      `[AgentDev] Completed: ${successCount}/${results.length} tasks successful`
-    );
+  /**
+   * Get all tasks
+   */
+  getTasks(): TaskWithStatus[] {
+    return Array.from(this.tasks.values());
+  }
+
+  /**
+   * Update task status
+   */
+  updateStatus(id: string, status: TaskStatus, result?: Result): void {
+    const task = this.tasks.get(id);
+    if (task) {
+      task.status = status;
+      if (result) {
+        task.result = result;
+      }
+    }
+  }
+
+  /**
+   * Execute tasks in parallel (no dependency handling)
+   */
+  async parallel(tasks: Task[]): Promise<Result[]> {
+    // This will be implemented to call OpenClaw sessions_spawn
+    // For now, return placeholder results
+    const results: Result[] = tasks.map(task => ({
+      taskId: task.id,
+      success: true,
+      output: `Task ${task.id} completed`,
+      filesModified: task.files,
+    }));
 
     return results;
   }
 
   /**
-   * Sequential development
+   * Execute tasks respecting dependencies (topological order)
    */
-  async sequentialDev(spec: DevSpec): Promise<DevResult[]> {
-    log.info(`[AgentDev] Starting sequential development: ${spec.name}`);
+  async executeWithDeps(): Promise<Result[]> {
+    const results: Result[] = [];
+    const completed = new Set<string>();
 
-    const results: DevResult[] = [];
+    // Get tasks with no dependencies
+    const getReadyTasks = (): TaskWithStatus[] => {
+      return this.getTasks().filter(t => {
+        if (t.status !== 'pending') return false;
+        if (!t.deps || t.deps.length === 0) return true;
+        return t.deps.every(dep => completed.has(dep));
+      });
+    };
 
-    for (const task of spec.tasks) {
-      const result = await this.executeTask(task, spec.cwd);
-      results.push(result);
-
-      if (!result.success) {
-        log.warn(`[AgentDev] Task ${task.id} failed, stopping sequence`);
+    // Process until all tasks are done
+    while (completed.size < this.tasks.size) {
+      const ready = getReadyTasks();
+      if (ready.length === 0) {
+        // Check for circular dependencies
+        const pending = this.getTasks().filter(t => t.status === 'pending');
+        if (pending.length > 0) {
+          throw new Error('Circular dependency detected or missing dependencies');
+        }
         break;
+      }
+
+      // Execute ready tasks in parallel
+      const batchResults = await this.parallel(ready);
+
+      for (const result of batchResults) {
+        results.push(result);
+        completed.add(result.taskId);
+        this.updateStatus(
+          result.taskId,
+          result.success ? 'completed' : 'failed',
+          result
+        );
       }
     }
 
@@ -95,69 +118,9 @@ export class AgentDev {
   }
 
   /**
-   * Execute single task with agent
+   * Clear all tasks
    */
-  private async executeTask(task: DevTask, cwd: string): Promise<DevResult> {
-    log.info(`[AgentDev] Executing task ${task.id}: ${task.task.substring(0, 50)}...`);
-
-    try {
-      const result = await sessions_spawn({
-        runtime: this.config.runtime || 'acp',
-        agentId: task.agent,
-        cwd,
-        task: task.task,
-        mode: 'run',
-      });
-
-      log.info(`[AgentDev] Task ${task.id} completed`);
-
-      return {
-        taskId: task.id,
-        files: task.files,
-        success: true,
-      };
-    } catch (error: any) {
-      log.error(`[AgentDev] Task ${task.id} failed:`, error.message);
-
-      return {
-        taskId: task.id,
-        files: task.files,
-        success: false,
-        error,
-      };
-    }
-  }
-
-  /**
-   * Review code
-   */
-  async review(results: DevResult[]): Promise<any> {
-    const successfulResults = results.filter((r) => r.success);
-    log.info(`[AgentDev] Reviewing ${successfulResults.length} task results`);
-
-    return await this.reviewer.review(successfulResults);
-  }
-
-  /**
-   * Commit changes
-   */
-  async commit(results: DevResult[], message?: string): Promise<void> {
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
-
-    const files = results.flatMap((r) => r.files);
-    const msg = message || `feat: ${results.length} tasks completed`;
-
-    try {
-      await execAsync(`git add ${files.join(' ')}`);
-      await execAsync(`git commit -m "${msg}"`);
-      log.info(`[AgentDev] Committed: ${msg}`);
-    } catch (error: any) {
-      log.error(`[AgentDev] Commit failed:`, error.message);
-    }
+  clear(): void {
+    this.tasks.clear();
   }
 }
-
-// Default instance
-export const agentDev = new AgentDev();

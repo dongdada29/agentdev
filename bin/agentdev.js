@@ -2,42 +2,40 @@
 
 /**
  * AgentDev CLI
- * Multi-Agent Collaborative Development Framework
  */
 
-const commands = {
-  async init(args) {
-    const dir = args[0] || '.agentdev';
-    console.log(`Initializing AgentDev in ${dir}...`);
-    console.log('✅ Done');
-  },
-  
-  async status() {
-    console.log('\n📊 AgentDev Status\n');
-    console.log('Framework: Ready');
-    console.log('Workers: 0');
-    console.log('Tasks: 0\n');
-  },
-  
-  async help() {
-    console.log(`
-🤖 AgentDev CLI
+import { Command } from 'commander';
+import { AgentDev } from '../dist/index.js';
 
-Usage: agentdev <command>
+const program = new Command();
 
-Commands:
-  init [dir]     Initialize AgentDev project
-  status         Show status
-  help           Show this help
+program
+  .name('agentdev')
+  .description('Multi-Agent Collaborative Development Framework')
+  .version('0.1.0');
 
-Examples:
-  agentdev init
-  agentdev status
-    `);
-  },
-};
+program
+  .command('dev')
+  .description('Execute parallel development tasks')
+  .option('-c, --config <path>', 'Path to config file', 'agentdev.config.ts')
+  .option('-p, --parallel <number>', 'Max parallel tasks', '5')
+  .argument('<tasks>', 'Path to tasks JSON file')
+  .action(async (tasksFile, options) => {
+    console.log('🚀 Starting parallel development...');
+    console.log(`Tasks file: ${tasksFile}`);
+    console.log(`Config: ${options.config}`);
+    console.log(`Max parallel: ${options.parallel}`);
+    
+    // TODO: Load tasks from file and execute
+    console.log('\n⚠️  CLI not fully implemented yet. Use programmatic API.');
+  });
 
-const args = process.argv.slice(2);
-const cmd = args[0] || 'help';
+program
+  .command('review')
+  .description('Review results from previous run')
+  .action(async () => {
+    console.log('🔍 Reviewing results...');
+    // TODO: Implement
+  });
 
-commands[cmd]?.(args.slice(1)) || commands.help();
+program.parse();

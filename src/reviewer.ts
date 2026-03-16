@@ -1,132 +1,84 @@
 /**
- * Code Reviewer
- * Automatic code review for generated code
+ * Reviewer - Code review and issue detection
  */
 
-import log from 'electron-log';
+import type { Result, Issue, AgentDevConfig } from './types.js';
 
-export interface ReviewIssue {
-  severity: 'error' | 'warning' | 'info';
-  file: string;
-  line?: number;
-  message: string;
-  rule: string;
-}
+export class Reviewer {
+  private config: AgentDevConfig;
 
-export interface ReviewResult {
-  passed: boolean;
-  issues: ReviewIssue[];
-  coverage?: number;
-}
-
-export interface ReviewConfig {
-  minCoverage?: number;
-  rules?: string[];
-}
-
-/**
- * CodeReviewer - Automatic code review
- */
-export class CodeReviewer {
-  private config: ReviewConfig;
-
-  constructor(config: ReviewConfig = {}) {
-    this.config = {
-      minCoverage: 70,
-      rules: ['error-handling', 'types', 'naming', 'security'],
-      ...config,
-    };
+  constructor(config: AgentDevConfig) {
+    this.config = config;
   }
 
   /**
-   * Review code
+   * Review results and find issues
    */
-  async review(results: any[]): Promise<ReviewResult> {
-    log.info(`[CodeReviewer] Starting review for ${results.length} results`);
+  async review(results: Result[]): Promise<Issue[]> {
+    const issues: Issue[] = [];
 
-    const issues: ReviewIssue[] = [];
-
-    // Review each result
     for (const result of results) {
+      // Basic review checks
       const resultIssues = await this.reviewResult(result);
       issues.push(...resultIssues);
     }
 
-    const passed = issues.filter((i) => i.severity === 'error').length === 0;
-
-    log.info(`[CodeReviewer] Review complete: ${issues.length} issues found`);
-
-    return {
-      passed,
-      issues,
-    };
-  }
-
-  /**
-   * Review single result
-   */
-  private async reviewResult(result: any): Promise<ReviewIssue[]> {
-    const issues: ReviewIssue[] = [];
-
-    // Check error handling
-    issues.push(...this.checkErrorHandling(result));
-
-    // Check types
-    issues.push(...this.checkTypes(result));
-
-    // Check naming
-    issues.push(...this.checkNaming(result));
-
-    // Check security
-    issues.push(...this.checkSecurity(result));
-
     return issues;
   }
 
   /**
-   * Check error handling
+   * Review a single result
    */
-  private checkErrorHandling(result: any): ReviewIssue[] {
-    const issues: ReviewIssue[] = [];
-    // Basic check - would need AST parsing for full implementation
-    return issues;
-  }
+  private async reviewResult(result: Result): Promise<Issue[]> {
+    const issues: Issue[] = [];
 
-  /**
-   * Check types
-   */
-  private checkTypes(result: any): ReviewIssue[] {
-    const issues: ReviewIssue[] = [];
-    // Basic check - would need AST parsing for full implementation
-    return issues;
-  }
-
-  /**
-   * Check naming
-   */
-  private checkNaming(result: any): ReviewIssue[] {
-    const issues: ReviewIssue[] = [];
-    // Basic check - would need AST parsing for full implementation
-    return issues;
-  }
-
-  /**
-   * Check security
-   */
-  private checkSecurity(result: any): ReviewIssue[] {
-    const issues: ReviewIssue[] = [];
-
-    // Check for hardcoded secrets
-    const code = JSON.stringify(result);
-    if (/(api[_-]?key|password|token|secret)/i.test(code)) {
+    // Check if task failed
+    if (!result.success) {
       issues.push({
-        severity: 'warning',
-        file: 'unknown',
-        message: 'Potential hardcoded sensitive information',
-        rule: 'security',
+        id: `issue-${result.taskId}-error`,
+        taskId: result.taskId,
+        type: 'error',
+        file: result.filesModified?.[0] || 'unknown',
+        message: result.output || 'Task failed without output',
       });
+      return issues;
     }
 
+    // TODO: Add more sophisticated review logic
+    // - Run linter
+    // - Run tests
+    // - Check code quality
+    // - Security scan
+
     return issues;
+  }
+
+  /**
+   * Check if there are critical issues
+   */
+  hasCriticalIssues(issues: Issue[]): boolean {
+    return issues.some(i => i.type === 'error');
+  }
+
+  /**
+   * Filter issues by type
+   */
+  filterByType(issues: Issue[], type: Issue['type']): Issue[] {
+    return issues.filter(i => i.type === type);
+  }
+
+  /**
+   * Group issues by file
+   */
+  groupByFile(issues: Issue[]): Map<string, Issue[]> {
+    const grouped = new Map<string, Issue[]>();
+
+    for (const issue of issues) {
+      const fileIssues = grouped.get(issue.file) || [];
+      fileIssues.push(issue);
+      grouped.set(issue.file, fileIssues);
+    }
+
+    return grouped;
   }
 }
