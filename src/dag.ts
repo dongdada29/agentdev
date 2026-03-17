@@ -251,6 +251,7 @@ export class TaskDAG {
 
   /**
    * Execute DAG with callback
+   * FIXED: Properly collect all results from parallel execution
    */
   async execute(
     executor: (task: Task) => Promise<Result>,
@@ -262,45 +263,65 @@ export class TaskDAG {
   ): Promise<Result[]> {
     const results: Result[] = [];
     const maxConcurrent = options?.maxConcurrent || 5;
-    const running = new Map<string, Promise<Result>>();
+    const runningPromises = new Map<string, Promise<Result>>();
 
     while (!this.isComplete()) {
       const ready = this.getReady();
 
-      while (running.size < maxConcurrent && ready.length > 0) {
+      while (runningPromises.size < maxConcurrent && ready.length > 0) {
         const task = ready.shift()!;
         
         if (options?.onTaskStart) {
           options.onTaskStart(task);
         }
 
-        const promise = executor(task).then(result => {
-          this.complete(task.id);
-          running.delete(task.id);
-          
-          if (options?.onTaskComplete) {
-            options.onTaskComplete(task, result);
-          }
-          
-          return result;
-        });
+        const promise = executor(task)
+          .then(result => {
+            this.complete(task.id);
+            if (options?.onTaskComplete) {
+              options.onTaskComplete(task, result);
+            }
+            return result;
+          })
+          .catch((error): Result => {
+            // Handle errors gracefully
+            const result: Result = {
+              taskId: task.id,
+              success: false,
+              output: error instanceof Error ? error.message : 'Unknown error',
+            };
+            this.complete(task.id);
+            if (options?.onTaskComplete) {
+              options.onTaskComplete(task, result);
+            }
+            return result;
+          });
 
-        running.set(task.id, promise);
+        runningPromises.set(task.id, promise);
       }
 
-      if (running.size > 0) {
-        const racePromises = Array.from(running.values()).map(p =>
-          p.then(r => r, () => null as unknown as Result)
+      if (runningPromises.size > 0) {
+        // Wait for one to complete using race, then collect its result
+        const completedEntry = await Promise.race(
+          Array.from(runningPromises.entries()).map(async ([id, promise]) => {
+            const result = await promise;
+            return { id, result };
+          })
         );
-        const result = await Promise.race(racePromises);
-        if (result) {
-          results.push(result);
-        }
+
+        runningPromises.delete(completedEntry.id);
+        results.push(completedEntry.result);
       }
 
-      if (this.getReady().length === 0 && running.size === 0) {
+      if (this.getReady().length === 0 && runningPromises.size === 0) {
         break;
       }
+    }
+
+    // Collect any remaining running tasks
+    if (runningPromises.size > 0) {
+      const remaining = await Promise.all(runningPromises.values());
+      results.push(...remaining);
     }
 
     return results;

@@ -18,6 +18,25 @@ const defaultGateway: GatewayConfig = {
 };
 
 /**
+ * Validate task before spawning
+ */
+function validateTask(task: Task): void {
+  if (!task.id || task.id.trim() === '') {
+    throw new Error('Task id is required');
+  }
+  if (!task.agent || task.agent.trim() === '') {
+    throw new Error('Task agent is required');
+  }
+  if (!task.task || task.task.trim() === '') {
+    throw new Error('Task description is required');
+  }
+  // Files can be empty for some tasks
+  if (!Array.isArray(task.files)) {
+    throw new Error('Task files must be an array');
+  }
+}
+
+/**
  * Spawn an agent via OpenClaw Gateway API
  */
 export async function spawnAgent(
@@ -26,8 +45,26 @@ export async function spawnAgent(
   gateway: GatewayConfig = defaultGateway
 ): Promise<Result> {
   const startTime = Date.now();
+  const timeout = agentConfig.timeout || gateway.timeout || 120000;
+
+  // Validate input
+  try {
+    validateTask(task);
+  } catch (error) {
+    return {
+      taskId: task.id,
+      success: false,
+      output: error instanceof Error ? error.message : 'Invalid task',
+      filesModified: [],
+      duration: 0,
+    };
+  }
 
   try {
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
     // Call OpenClaw Gateway spawn endpoint
     const response = await fetch(`${gateway.baseUrl}/api/v1/spawn`, {
       method: 'POST',
@@ -41,9 +78,12 @@ export async function spawnAgent(
         attachAs: {
           mountPath: task.files.join(','),
         },
-        timeout: agentConfig.timeout || gateway.timeout,
+        timeout: timeout,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Spawn failed: ${response.status} ${response.statusText}`);
@@ -61,6 +101,17 @@ export async function spawnAgent(
       raw: data,
     };
   } catch (error) {
+    // Handle timeout specifically
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        taskId: task.id,
+        success: false,
+        output: `Request timed out after ${timeout}ms`,
+        filesModified: [],
+        duration: Date.now() - startTime,
+      };
+    }
+
     return {
       taskId: task.id,
       success: false,

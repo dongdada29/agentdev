@@ -31,7 +31,11 @@ describe('retry', () => {
 
   it('should retry on failure', async () => {
     mockSpawn
-      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({
+        taskId: 't1',
+        success: false,
+        output: 'Network error',
+      } as Result)
       .mockResolvedValueOnce({
         taskId: 't1',
         success: true,
@@ -48,7 +52,11 @@ describe('retry', () => {
   });
 
   it('should fail after max attempts', async () => {
-    mockSpawn.mockRejectedValue(new Error('Always fails'));
+    mockSpawn.mockResolvedValue({
+      taskId: 't1',
+      success: false,
+      output: 'Always fails',
+    } as Result);
 
     const result = await executeWithRetry(task, config, {
       maxAttempts: 3,

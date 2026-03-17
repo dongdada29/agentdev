@@ -109,6 +109,7 @@ export class WorkerPool {
 
   /**
    * Process queue with worker pool
+   * FIXED: Properly collect all results from parallel execution
    */
   async processQueue(
     tasks: Task[],
@@ -116,10 +117,11 @@ export class WorkerPool {
   ): Promise<Result[]> {
     const results: Result[] = [];
     const pending = [...tasks];
+    const runningPromises = new Map<string, Promise<Result>>();
     let completed = 0;
 
     // Process tasks until queue is empty
-    while (pending.length > 0 || this.workers.some(w => w.status === 'running')) {
+    while (pending.length > 0 || runningPromises.size > 0) {
       // Assign tasks to idle workers
       while (pending.length > 0) {
         const worker = this.getIdleWorker();
@@ -127,21 +129,30 @@ export class WorkerPool {
 
         const task = pending.shift()!;
         this.assignTask(worker, task);
-      }
 
-      // Wait for at least one worker to complete
-      const runningWorkers = this.workers.filter(w => w.status === 'running');
-      if (runningWorkers.length > 0) {
-        // Use Promise.race for better responsiveness
-        const promises = runningWorkers.map(async w => {
-          const result = await this.executeTask(w);
-          w.status = 'idle';
+        // Create promise and track it
+        const promise = this.executeTask(worker).then(result => {
+          worker.status = 'idle';
           return result;
         });
+        runningPromises.set(task.id, promise);
+      }
 
-        // Wait for one to complete
-        const result = await Promise.race(promises);
-        results.push(result);
+      // Wait for at least one task to complete
+      if (runningPromises.size > 0) {
+        // Use Promise.race to know when one completes, then collect ALL results properly
+        const completedEntry = await Promise.race(
+          Array.from(runningPromises.entries()).map(async ([id, promise]) => {
+            const result = await promise;
+            return { id, result };
+          })
+        );
+
+        // Remove completed task from tracking
+        runningPromises.delete(completedEntry.id);
+
+        // Collect result
+        results.push(completedEntry.result);
         completed++;
 
         if (onProgress) {
