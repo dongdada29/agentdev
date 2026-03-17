@@ -204,7 +204,9 @@ const agent = await missionControl.pickAgent({
 | **agentdev v0.2** | 队列 + Worker池 + 重试 + OpenClaw集成 | 1周 | ✅ 完成 |
 | **agentdev v0.3** | DAG + 多模型 | 2周 | ✅ 完成 |
 | **mission-control v0.1** | Workspace + Agent管理 | 2周 | ✅ 完成 |
-| **mission-control v0.2** | 绩效 + 成本 | 2周 | 🔜 下一步 |
+| **mission-control v0.2** | 绩效 + 成本 + 2周 | ✅ 完成 |
+
+**总计**：8 周 (约 2 个月)
 
 **总计**：8 周 (约 2 个月)
 
