@@ -13,6 +13,9 @@ export { spawnAgent, spawnAgentsParallel, checkGateway } from './spawn.js';
 export { TaskQueue } from './queue.js';
 export { WorkerPool } from './pool.js';
 export { executeWithRetry, executeBatchWithRetry, calculateRetryStats } from './retry.js';
+export { TaskDAG } from './dag.js';
+export { ModelRouter, createRouter } from './router.js';
+export { IncrementalDev, createIncremental } from './incremental.js';
 export type { RetryConfig, RetryStats } from './retry.js';
 export type {
   Task,
