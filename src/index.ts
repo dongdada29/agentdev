@@ -10,6 +10,10 @@ import type { Task, Result, Issue, AgentDevConfig } from './types.js';
 export { Coordinator } from './coordinator.js';
 export { Reviewer } from './reviewer.js';
 export { spawnAgent, spawnAgentsParallel, checkGateway } from './spawn.js';
+export { TaskQueue } from './queue.js';
+export { WorkerPool } from './pool.js';
+export { executeWithRetry, executeBatchWithRetry, calculateRetryStats } from './retry.js';
+export type { RetryConfig, RetryStats } from './retry.js';
 export type {
   Task,
   Result,
